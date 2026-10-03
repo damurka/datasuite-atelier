@@ -1,0 +1,30 @@
+{
+	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./out",
+		"types": [
+			"node",
+			"vscode"
+		],
+		"esModuleInterop": true,
+		"target": "ES2024",
+		"lib": [
+			"ES2024"
+		],
+		"module": "commonjs",
+		"strict": true,
+		"noImplicitReturns": true,
+		"noImplicitOverride": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"forceConsistentCasingInFileNames": true,
+		"skipLibCheck": true
+	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"src/webview/**",
+		"src/test/**"
+	]
+}

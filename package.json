@@ -1,0 +1,298 @@
+{
+  "name": "atelier",
+  "displayName": "Atelier",
+  "description": "Research synthesis: plans the searches, reads PubMed, Europe PMC, OpenAlex and Semantic Scholar, ranks the papers by meaning with DataSuite's embeddings and writes a cited summary with DataSuite's AI.",
+  "publisher": "datasuite",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/damurka/atelier-reference.git"
+  },
+  "engines": {
+    "vscode": "^1.131.0"
+  },
+  "categories": [
+    "Data Science",
+    "AI"
+  ],
+  "keywords": [
+    "literature review",
+    "research",
+    "pubmed",
+    "synthesis",
+    "datasuite"
+  ],
+  "enabledApiProposals": [
+    "embeddings"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "atelier.open",
+        "title": "Open Atelier",
+        "category": "Atelier",
+        "icon": "$(mortar-board)"
+      },
+      {
+        "command": "atelier.newSearch",
+        "title": "New Search",
+        "category": "Atelier",
+        "icon": "$(add)"
+      },
+      {
+        "command": "atelier.openHistory",
+        "title": "Open History",
+        "category": "Atelier",
+        "icon": "$(history)"
+      },
+      {
+        "command": "atelier.openSettings",
+        "title": "Open Settings",
+        "category": "Atelier",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "atelier.openSession",
+        "title": "Open Session",
+        "category": "Atelier"
+      },
+      {
+        "command": "atelier.deleteSession",
+        "title": "Delete Session",
+        "category": "Atelier",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "atelier.setApiKey",
+        "title": "Set Database API Keys and Email",
+        "category": "Atelier"
+      },
+      {
+        "command": "atelier.runBenchmark",
+        "title": "Run Ranking Benchmark",
+        "category": "Atelier"
+      }
+    ],
+    "configuration": {
+      "title": "Atelier",
+      "properties": {
+        "atelier.maxResultsPerSource": {
+          "type": "number",
+          "default": 50,
+          "minimum": 5,
+          "maximum": 100,
+          "markdownDescription": "Papers asked of each database per search, shared among its queries. A bigger pool finds more of what is relevant, and ranking it costs little."
+        },
+        "atelier.referencesWanted": {
+          "type": "number",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 50,
+          "markdownDescription": "The papers a synthesis aims to cite. The AI reads down the ranking, replacing each paper it screens out with the next best, until this many answer the question."
+        },
+        "atelier.papersToRead": {
+          "type": "number",
+          "default": 60,
+          "minimum": 1,
+          "maximum": 200,
+          "markdownDescription": "The most papers the AI reads for one search (one request each) while looking for `#atelier.referencesWanted#` that answer the question."
+        },
+        "atelier.contactEmail": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional. Sent to PubMed (NCBI E-utilities) and OpenAlex with each request, as they ask of tools: OpenAlex answers faster for it, and NCBI can write before blocking."
+        },
+        "atelier.readFullText": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Read the open-access full text (Europe PMC) of the papers that have one: the evidence table's population, sample size and methods then come from the paper itself, and the AI checks whether the abstract overstates its findings. Each such paper is a longer request."
+        },
+        "atelier.citationStyle": {
+          "type": "string",
+          "default": "vancouver",
+          "enum": [
+            "vancouver",
+            "ama",
+            "ieee",
+            "apa",
+            "harvard"
+          ],
+          "enumItemLabels": [
+            "Vancouver: (1-3, 5)",
+            "AMA: raised numbers",
+            "IEEE: [1]-[3], [5]",
+            "APA 7th: (Lee et al., 2021)",
+            "Harvard: (Lee et al., 2021)"
+          ],
+          "markdownDescription": "How the PDF report cites papers in its text and writes out its references, and how the formatted list of references is written."
+        },
+        "atelier.databases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "pubmed",
+              "europepmc",
+              "openalex",
+              "semanticscholar",
+              "crossref",
+              "core",
+              "arxiv"
+            ]
+          },
+          "default": [
+            "pubmed",
+            "europepmc",
+            "openalex",
+            "semanticscholar",
+            "crossref",
+            "core"
+          ],
+          "markdownDescription": "The databases a search asks. Crossref covers every discipline; CORE the open-access repositories (theses, reports, working papers); arXiv preprints in physics, mathematics and computing."
+        },
+        "atelier.followCitations": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Follow the citations of the best papers a search finds -- what they cite, what cites them, what Semantic Scholar finds similar -- to find papers the keyword searches miss."
+        },
+        "atelier.workModel": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "The AI model (its id) that screens and reads the papers, which is most of a search’s requests. A fast model makes searches quicker; keeping to one makes rankings alike from search to search. Empty: the model chosen for the question. Set it on Atelier’s Settings page."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "atelier",
+          "title": "Atelier",
+          "icon": "media/atelier.svg"
+        }
+      ]
+    },
+    "views": {
+      "atelier": [
+        {
+          "id": "atelier.sessions",
+          "name": "Sessions",
+          "icon": "media/atelier.svg",
+          "contextualTitle": "Atelier"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "atelier.sessions",
+        "contents": "Ask a research question and Atelier searches the literature, reads the best papers and writes a cited summary.\n[Open Atelier](command:atelier.open)\nYour sessions are listed here once you have asked something."
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "atelier.newSearch",
+          "when": "view == atelier.sessions",
+          "group": "navigation@1"
+        },
+        {
+          "command": "atelier.openHistory",
+          "when": "view == atelier.sessions",
+          "group": "navigation@2"
+        },
+        {
+          "command": "atelier.open",
+          "when": "view == atelier.sessions",
+          "group": "navigation@3"
+        },
+        {
+          "command": "atelier.openSettings",
+          "when": "view == atelier.sessions",
+          "group": "navigation@4"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "atelier.openSession",
+          "when": "false"
+        },
+        {
+          "command": "atelier.deleteSession",
+          "when": "false"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "atelier.deleteSession",
+          "when": "view == atelier.sessions && viewItem == session",
+          "group": "inline"
+        },
+        {
+          "command": "atelier.deleteSession",
+          "when": "view == atelier.sessions && viewItem == session",
+          "group": "9_delete"
+        }
+      ]
+    },
+    "walkthroughs": [
+      {
+        "id": "atelier.start",
+        "title": "Get Started with Atelier",
+        "description": "Research synthesis: a question in, a cited summary of the literature out.",
+        "steps": [
+          {
+            "id": "atelier.start.open",
+            "title": "Open Atelier",
+            "description": "Atelier opens as a tab. It is also in the side bar (the mortar-board icon) and the status bar.\n[Open Atelier](command:atelier.open)",
+            "media": {
+              "markdown": "media/start.md"
+            },
+            "completionEvents": [
+              "onCommand:atelier.open"
+            ]
+          },
+          {
+            "id": "atelier.start.ask",
+            "title": "Ask a question",
+            "description": "Type a research question and press Synthesize. A yes/no question also gets the Atelier Meter.\n[New Search](command:atelier.newSearch)",
+            "media": {
+              "markdown": "media/start.md"
+            },
+            "completionEvents": [
+              "onCommand:atelier.newSearch"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc -p ./ --noEmit && tsc -p ./src/webview --noEmit",
+    "test": "tsc -p ./tsconfig.test.json && node --test \"out-test/test/**/*.test.js\"",
+    "vscode:prepublish": "npm run typecheck && npm run build"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.0",
+    "marked": "^16.0.0",
+    "pdfmake": "^0.3.11"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/vscode": "1.125.0",
+    "@vscode/codicons": "^0.0.46-24",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^6.0.3"
+  }
+}

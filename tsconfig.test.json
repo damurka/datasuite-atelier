@@ -1,0 +1,18 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "./out-test",
+		"types": [
+			"node"
+		]
+	},
+	"include": [
+		"src/shared/**/*",
+		"src/core/**/*",
+		"src/search/**/*",
+		"src/test/**/*",
+		"src/export.ts",
+		"src/pdfmake.d.ts"
+	],
+	"exclude": []
+}

@@ -1,0 +1,153 @@
+name: CI / Release
+
+# - Every push to main and every PR: compile + package the .vsix (build check, artifact attached).
+# - Pushing a tag `v<version>` (created by `npm version`): also publish to the DataSuite
+#   registry (Open VSX) and cut a GitHub release. The tag MUST equal package.json's version.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OVSX_REGISTRY_URL: https://datasuite.damurka.com/registry
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.package.outputs.id }}
+      version: ${{ steps.package.outputs.version }}
+      file: ${{ steps.package.outputs.file }}
+      sha256: ${{ steps.package.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck and test
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Check tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version ($expected). Release with 'npm version <patch|minor|major>' and push the tag it creates."
+            exit 1
+          fi
+
+      - name: Package .vsix
+        id: package
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          name="$(node -p "require('./package.json').name")"
+          id="$(node -p "const p=require('./package.json'); p.publisher + '.' + p.name")"
+          file="${name}-${version}.vsix"
+          npx vsce package --out "$file"
+          sha256="$(sha256sum "$file" | cut -d' ' -f1)"
+          {
+            echo "id=$id"
+            echo "version=$version"
+            echo "file=$file"
+            echo "sha256=$sha256"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### $file"
+            echo
+            echo "sha256: \`$sha256\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vsix
+          path: ${{ steps.package.outputs.file }}
+          retention-days: 30
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      EXTENSION_ID: ${{ needs.build.outputs.id }}
+      VERSION: ${{ needs.build.outputs.version }}
+      FILE: ${{ needs.build.outputs.file }}
+      BUILT_SHA256: ${{ needs.build.outputs.sha256 }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Publish to the DataSuite registry
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::error::Repository secret OVSX_PAT is not set (access token from $OVSX_REGISTRY_URL/user-settings/tokens)."
+            exit 1
+          fi
+          # --skip-duplicate makes re-running a failed release safe.
+          npx --yes ovsx@1.2.0 publish "$FILE" --skip-duplicate
+
+      # The datasuite build downloads exactly this URL and checks its sha256 against product.json,
+      # so this is the hash to pin -- not necessarily the one of the locally built file.
+      - name: Fetch what the registry serves
+        id: served
+        run: |
+          publisher="${EXTENSION_ID%%.*}"
+          name="${EXTENSION_ID#*.}"
+          url="$OVSX_REGISTRY_URL/vscode/gallery/publishers/$publisher/vsextensions/$name/$VERSION/vspackage"
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsSL "$url" -o served.vsix; then break; fi
+            echo "Attempt $attempt failed, retrying in 10s..."
+            sleep 10
+          done
+          test -s served.vsix || { echo "::error::Could not download $url"; exit 1; }
+          served="$(sha256sum served.vsix | cut -d' ' -f1)"
+          if [ "$served" != "$BUILT_SHA256" ]; then
+            echo "::warning::Registry serves a different file than was built (built $BUILT_SHA256, served $served). Pin the served hash."
+          fi
+          echo "sha256=$served" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          SERVED_SHA256: ${{ steps.served.outputs.sha256 }}
+        run: |
+          cat > notes.md <<EOF
+          Published to $OVSX_REGISTRY_URL as \`$EXTENSION_ID@$VERSION\`.
+
+          Pin in \`datasuite/product.json\` → \`builtInExtensions\`:
+
+          \`\`\`json
+          "name": "$EXTENSION_ID",
+          "version": "$VERSION",
+          "sha256": "$SERVED_SHA256"
+          \`\`\`
+          EOF
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists, leaving it as is."
+          else
+            gh release create "$GITHUB_REF_NAME" "$FILE" --verify-tag \
+              --title "Atelier $VERSION" --notes-file notes.md
+          fi
