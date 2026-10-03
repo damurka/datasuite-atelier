@@ -26,6 +26,8 @@ for the question. The papers can be filtered (year, sample size, design, what th
 A follow-up is answered from the papers at hand, or -- when they can't answer it -- starts a new search. Tick papers to
 ask about those alone. Sessions are kept and listed under History; a query's papers export to CSV.
 
+Install **Atelier** from DataSuite's Extensions view. How to use it is in the [user guide](docs/USER-GUIDE.md).
+
 Open it from Atelier's view in the side bar (the mortar-board icon: your sessions, with Open Atelier, New Search and
 History in its title), the **Atelier** button in the status bar, or **Atelier: Open Atelier** in the Command Palette.
 
@@ -67,13 +69,14 @@ and with what is stored on this computer: delete one session (History, or its ow
 
 `npm version <patch|minor|major>` and push the tag: CI (`.github/workflows/ci.yml`) typechecks, tests and packages the
 `.vsix`, publishes it to the DataSuite registry (it needs the repository secret `OVSX_PAT`) and makes a GitHub release
-whose notes give the `product.json` pin for DataSuite's `builtInExtensions`.
+with the `.vsix` attached. Atelier is not built into DataSuite: it is installed from the registry, in DataSuite's
+Extensions view.
 
 Embeddings need DataSuite to know the extension: `datasuite.atelier` in `product.json`'s
 `extensionEnabledApiProposals` and in `EMBEDDINGS_COMMAND_EXTENSIONS` (datasuite-assistant). A DataSuite built without
 them ranks by keywords.
 
-The user guide is on the docs site: `docs-site/src/content/en/apps/atelier.mdx` in `datasuite-identity`.
+The user guide is [docs/USER-GUIDE.md](docs/USER-GUIDE.md).
 
 ## Where things are kept
 

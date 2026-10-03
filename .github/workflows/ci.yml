@@ -3,6 +3,7 @@ name: CI / Release
 # - Every push to main and every PR: compile + package the .vsix (build check, artifact attached).
 # - Pushing a tag `v<version>` (created by `npm version`): also publish to the DataSuite
 #   registry (Open VSX) and cut a GitHub release. The tag MUST equal package.json's version.
+#   Atelier is installed from the registry; it is not one of DataSuite's built-in extensions.
 
 on:
   push:
@@ -109,8 +110,7 @@ jobs:
           # --skip-duplicate makes re-running a failed release safe.
           npx --yes ovsx@1.2.0 publish "$FILE" --skip-duplicate
 
-      # The datasuite build downloads exactly this URL and checks its sha256 against product.json,
-      # so this is the hash to pin -- not necessarily the one of the locally built file.
+      # What the registry serves is what users install: its hash is what the release notes give.
       - name: Fetch what the registry serves
         id: served
         run: |
@@ -134,15 +134,11 @@ jobs:
           SERVED_SHA256: ${{ steps.served.outputs.sha256 }}
         run: |
           cat > notes.md <<EOF
-          Published to $OVSX_REGISTRY_URL as \`$EXTENSION_ID@$VERSION\`.
+          Published to $OVSX_REGISTRY_URL as \`$EXTENSION_ID@$VERSION\`. Install it from DataSuite's Extensions view.
 
-          Pin in \`datasuite/product.json\` → \`builtInExtensions\`:
+          sha256 of the .vsix the registry serves: \`$SERVED_SHA256\`
 
-          \`\`\`json
-          "name": "$EXTENSION_ID",
-          "version": "$VERSION",
-          "sha256": "$SERVED_SHA256"
-          \`\`\`
+          How to use it: [the user guide](https://github.com/$GH_REPO/blob/$GITHUB_REF_NAME/docs/USER-GUIDE.md). What changed: [CHANGELOG](https://github.com/$GH_REPO/blob/$GITHUB_REF_NAME/CHANGELOG.md).
           EOF
           cat notes.md >> "$GITHUB_STEP_SUMMARY"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
