@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/damurka/atelier-reference.git"
+    "url": "https://github.com/damurka/datasuite-atelier.git"
   },
   "engines": {
     "vscode": "^1.131.0"
